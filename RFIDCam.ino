@@ -13,17 +13,18 @@
 #include <Process.h>
 #define SS_PIN 10
 #define RST_PIN 9
-#define invalid2DB
+//#define invalid2DB
 const int MAX_STUDENTS = 50;
 
 MFRC522 rfid(SS_PIN, RST_PIN); // Instance of the class
 
 // Init array that will store new RFID
 byte nuidPICC[4];
-String hexRFID;
-String validIDs[MAX_STUDENTS]; 
-//char* hexRFID;
-//char validIDs[MAX_STUDENTS]; 
+//String hexRFID;
+//String validIDs[MAX_STUDENTS]; 
+//char hexRFID[9];
+char hexRFID[9];
+char validIDs[MAX_STUDENTS][9]; 
 
 void setup() {
   Serial.begin(9600);
@@ -48,34 +49,39 @@ void loop() {
     return;
 
   // Reading in each byte of the RFID card and converting into a hex string, decimal string
-  String decRFID = "";
-  String tmp = "";
-  //char tmp ="";
-  hexRFID = "";
+//  String decRFID = "";
+//  char tmp[3] = "";
+//  //char tmp ="";
+//  hexRFID = "";
   for (byte i = 0; i < 4; i++) {
     nuidPICC[i] = rfid.uid.uidByte[i];
-    decRFID.concat(nuidPICC[i]);
-    tmp = String(nuidPICC[i], HEX);
+//    decRFID.concat(nuidPICC[i]);
+//    tmp = String(nuidPICC[i], HEX);
     //tmp = nuidPICC[i];
     //strupr(tmp);
     //if (tmp.length() < 2)
-    if(sizeof(tmp)<2)
-    {
-      tmp = 0 + tmp;
-    }
-    hexRFID.concat(tmp);
-    hexRFID.toUpperCase();
+//    if(sizeof(tmp)<2)
+//    {
+//      tmp = 0 + tmp;
+//    }
+//    hexRFID.concat(tmp);
+//    hexRFID.toUpperCase();
     //putchar{toupper(tmp));
     //hexRFID = hexRFID+tmp;
-  }  
+  }
+  Serial.println("before getHexRFID");
+  Serial.println(*nuidPICC);
+  //getHexRFID(nuidPICC,hexRFID);
+  getHexRFID(nuidPICC[0],nuidPICC[1],nuidPICC[2],nuidPICC[3]);//,hexRFID);    
+  Serial.println("after getHexRFID");
   #ifdef invalid2DB
     //String validIDs[] = ""; 
-    //Serial.println("before getValidIDs");
+    Serial.println("before getValidIDs");
     int numIDs = getValidIDs();
-    //Serial.println("after getValidIDs");
+    Serial.println("after getValidIDs");
     //Serial.println(numIDs);
     bool invalid = true;
-    //Serial.println(validIDs[1]);
+    Serial.println(validIDs[1]);
     //Serial.println(hexRFID);
     for(int i = 0; i < numIDs; i++){
             if(validIDs[i] == hexRFID) {//validIDs[i] == char(hexRFID, HEX)) {
@@ -112,6 +118,7 @@ void loop() {
     printHex(rfid.uid.uidByte, rfid.uid.size);
     Serial.println("");
     //Serial.println(hexRFID);
+    
     sendData();
     delay(1000);
   #endif
@@ -126,6 +133,8 @@ void printHex(byte *buffer, byte bufferSize) {
 
 // This function call the linkmysql.lua
 void sendData() {
+  Serial.print("hexRFID in sendData: ");
+  Serial.println(hexRFID);
   Process logdata;
   // date is a command line utility to get the date and the time
   // in different formats depending on the additional parameter
@@ -160,20 +169,22 @@ void getStudentTable()
 
 int getValidIDs()
 {
+  char cmdOutput[9*MAX_STUDENTS];
+  int j=0;
   Process iddata;
   iddata.begin("lua");
   iddata.addParameter("/root/idquerymysql.lua");
   iddata.run();
   // read the output of the command
-  String cmdOutput="";
-  //char cmdOutput[]="";
-  int j=0;
+  //String cmdOutput="";
   while (iddata.available() > 0) {
     char c = iddata.read();
-    cmdOutput.concat(c);
-    //cmdOutput[j] = c;
+    //cmdOutput.concat(c);
+    cmdOutput[j] = c;
+    j++;
   }
-  //Serial.println(cmdOutput);
+  Serial.println("cmdOutput created");
+  Serial.println(cmdOutput);
   
   //int numID = cmdOutput.length()/9;
   int numID = sizeof(cmdOutput) / sizeof(cmdOutput[0]);
@@ -184,7 +195,10 @@ int getValidIDs()
     endNum = startNum+8;
     //int index = i+1;
     //validIDs[index]= cmdOutput.substring(startNum,endNum);
-    validIDs[i]= cmdOutput.substring(startNum,endNum);
+    //validIDs[i]= cmdOutput.substring(startNum,endNum);
+    for(int j = 0; j<9; j++){
+      validIDs[i][j] = cmdOutput[startNum+j];
+    }
     //validIDs[i] = cmdOutput[startNum] + cmdOutput[startNum+1] + cmdOutput[startNum+2] + cmdOutput[startNum+3] + cmdOutput[startNum+4] + cmdOutput[startNum+5] + cmdOutput[startNum+6] + cmdOutput[startNum+8] ;
     //Serial.println(validIDs[index]);
   }
@@ -192,3 +206,39 @@ int getValidIDs()
   return numID;
 }
 
+void getHexRFID(byte byte0, byte byte1, byte byte2, byte byte3)//, char arr[])
+//void getHexRFID(byte uidByte[], char arr[])
+{
+
+  // simulation of data
+  //byte uidByte[] = {0x04, 0x73, 0xBA, 0x12, 0xB6, 0x2B, 0x80};
+  byte uidByte[] = {byte0, byte1, byte2, byte3};
+  byte uidSize = sizeof(uidByte);
+  Serial.println(*uidByte);
+  Serial.println(uidSize);
+  
+
+  // destination array; space for 14 representations of a nibble plus terminating '\0'
+  char dest[9];
+
+  // initialise character array
+  memset(dest, 0, sizeof(dest));
+  // test the size of the character array
+  if((sizeof(dest) - 1) / 2 < uidSize)
+  {
+    // display error message
+    Serial.println("Character buffer too small");
+    // never continue
+    for(;;);
+  }
+  for (int cnt = 0; cnt < uidSize; cnt++)
+  {
+    // convert byte to its ascii representation
+    sprintf(&dest[cnt * 2], "%02X", uidByte[cnt]);
+  }
+  // display
+  Serial.println(dest);
+  //hexRFID = dest;
+  strncpy(hexRFID,dest,9);
+  Serial.println(hexRFID);
+}
