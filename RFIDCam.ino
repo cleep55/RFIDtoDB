@@ -24,15 +24,16 @@ byte nuidPICC[4];
 //String validIDs[MAX_STUDENTS]; 
 //char hexRFID[9];
 char hexRFID[9];
-char validIDs[MAX_STUDENTS][9]; 
+char validIDs[MAX_STUDENTS][8]; 
+char cmdOutput[9*MAX_STUDENTS];
 
 void setup() {
-  Serial.begin(9600);
+  //Serial.begin(9600);
   SPI.begin(); // Init SPI bus
   rfid.PCD_Init(); // Init MFRC522
   Bridge.begin();  // Init Bridge to AR9331
 
-  Serial.println(F("Setting up Cam's RFID Reader"));
+  //Serial.println(F("Setting up Cam's RFID Reader"));
   getStudentTable();
 //  String validIDs[]=""; 
 //  getValidIDs(validIDs);
@@ -69,22 +70,27 @@ void loop() {
     //putchar{toupper(tmp));
     //hexRFID = hexRFID+tmp;
   }
-  Serial.println("before getHexRFID");
-  Serial.println(*nuidPICC);
+  //Serial.println("before getHexRFID");
+  //Serial.println(*nuidPICC);
   //getHexRFID(nuidPICC,hexRFID);
   getHexRFID(nuidPICC[0],nuidPICC[1],nuidPICC[2],nuidPICC[3]);//,hexRFID);    
-  Serial.println("after getHexRFID");
+  //Serial.println("after getHexRFID");
   #ifdef invalid2DB
     //String validIDs[] = ""; 
-    Serial.println("before getValidIDs");
+    //Serial.println("before getValidIDs");
     int numIDs = getValidIDs();
     Serial.println("after getValidIDs");
-    //Serial.println(numIDs);
+    Serial.println(numIDs);
     bool invalid = true;
-    Serial.println(validIDs[1]);
+    //Serial.println(validIDs[1]);
     //Serial.println(hexRFID);
+    char validator[9];
+    int startNum;
     for(int i = 0; i < numIDs; i++){
-            if(validIDs[i] == hexRFID) {//validIDs[i] == char(hexRFID, HEX)) {
+      startNum = i*8+i;
+      strncpy(validator, cmdOutput[startNum],8);
+      Serial.println(validator);
+            if(validator==hexRFID){//validIDs[i] == hexRFID) {//validIDs[i] == char(hexRFID, HEX)) {
                     Serial.println("Found!");
                     invalid = false;
                     i = numIDs;
@@ -103,20 +109,20 @@ void loop() {
     }
   
     else {
-      Serial.println(F("Hex read in: "));
-      printHex(rfid.uid.uidByte, rfid.uid.size);
-      Serial.println("");
+      //Serial.println(F("Hex read in: "));
+      //printHex(rfid.uid.uidByte, rfid.uid.size);
+      //Serial.println("");
       //Serial.println(hexRFID);
       
       sendData();
-      Serial.println("");
+      //Serial.println("");
       delay(1000);
       
     }
   #else
-    Serial.println(F("Hex read in: "));
-    printHex(rfid.uid.uidByte, rfid.uid.size);
-    Serial.println("");
+    //Serial.println(F("Hex read in: "));
+    //printHex(rfid.uid.uidByte, rfid.uid.size);
+    //Serial.println("");
     //Serial.println(hexRFID);
     
     sendData();
@@ -133,8 +139,8 @@ void printHex(byte *buffer, byte bufferSize) {
 
 // This function call the linkmysql.lua
 void sendData() {
-  Serial.print("hexRFID in sendData: ");
-  Serial.println(hexRFID);
+  //Serial.print("hexRFID in sendData: ");
+  //Serial.println(hexRFID);
   Process logdata;
   // date is a command line utility to get the date and the time
   // in different formats depending on the additional parameter
@@ -143,7 +149,7 @@ void sendData() {
   logdata.addParameter(hexRFID);  //
   logdata.run();  // run the command
   while(logdata.running());
-  Serial.println("data sent to database");
+  //Serial.println("data sent to database");
 
 }
 
@@ -160,10 +166,10 @@ void getStudentTable()
     char c = receivedata.read();
     cmdOutput.concat(c);
   }
-  Serial.println(cmdOutput);  
+  //Serial.println(cmdOutput);  
 //  String sub = cmdOutput.substring(4,12);
 //  Serial.println(sub);
-  Serial.println("current table read");
+  //Serial.println("current table read");
 }
 
 
@@ -183,23 +189,26 @@ int getValidIDs()
     cmdOutput[j] = c;
     j++;
   }
-  Serial.println("cmdOutput created");
-  Serial.println(cmdOutput);
+  //Serial.println("cmdOutput created");
+  //Serial.println(cmdOutput);
   
   //int numID = cmdOutput.length()/9;
-  int numID = sizeof(cmdOutput) / sizeof(cmdOutput[0]);
+  //int numID = sizeof(cmdOutput) / sizeof(cmdOutput[0]);
+  int numID = j/9;
   int startNum = 0;
   int endNum = 0;
+  //Serial.println(numID);
   for(int i=0; i<numID; i++){
     startNum = i*8+i;
-    endNum = startNum+8;
+    //endNum = startNum+7;
+    //strncpy(validIDs[i], cmdOutput[startNum],8);
     //int index = i+1;
     //validIDs[index]= cmdOutput.substring(startNum,endNum);
     //validIDs[i]= cmdOutput.substring(startNum,endNum);
-    for(int j = 0; j<9; j++){
-      validIDs[i][j] = cmdOutput[startNum+j];
-    }
-    //validIDs[i] = cmdOutput[startNum] + cmdOutput[startNum+1] + cmdOutput[startNum+2] + cmdOutput[startNum+3] + cmdOutput[startNum+4] + cmdOutput[startNum+5] + cmdOutput[startNum+6] + cmdOutput[startNum+8] ;
+//    for(int j = 0; j<8; j++){
+//      validIDs[i][j] = cmdOutput[startNum+j];
+//    }
+//    validIDs[i] = ""+cmdOutput[startNum] + cmdOutput[startNum+1] + cmdOutput[startNum+2] + cmdOutput[startNum+3] + cmdOutput[startNum+4] + cmdOutput[startNum+5] + cmdOutput[startNum+6] + cmdOutput[startNum+7];
     //Serial.println(validIDs[index]);
   }
   //Serial.println(numID);
@@ -214,8 +223,8 @@ void getHexRFID(byte byte0, byte byte1, byte byte2, byte byte3)//, char arr[])
   //byte uidByte[] = {0x04, 0x73, 0xBA, 0x12, 0xB6, 0x2B, 0x80};
   byte uidByte[] = {byte0, byte1, byte2, byte3};
   byte uidSize = sizeof(uidByte);
-  Serial.println(*uidByte);
-  Serial.println(uidSize);
+  //Serial.println(*uidByte);
+  //Serial.println(uidSize);
   
 
   // destination array; space for 14 representations of a nibble plus terminating '\0'
@@ -227,7 +236,7 @@ void getHexRFID(byte byte0, byte byte1, byte byte2, byte byte3)//, char arr[])
   if((sizeof(dest) - 1) / 2 < uidSize)
   {
     // display error message
-    Serial.println("Character buffer too small");
+    //Serial.println("Character buffer too small");
     // never continue
     for(;;);
   }
@@ -237,8 +246,8 @@ void getHexRFID(byte byte0, byte byte1, byte byte2, byte byte3)//, char arr[])
     sprintf(&dest[cnt * 2], "%02X", uidByte[cnt]);
   }
   // display
-  Serial.println(dest);
+  //Serial.println(dest);
   //hexRFID = dest;
   strncpy(hexRFID,dest,9);
-  Serial.println(hexRFID);
+  //Serial.println(hexRFID);
 }
